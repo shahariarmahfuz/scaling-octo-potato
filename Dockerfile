@@ -1,35 +1,27 @@
-# বেস ইমেজ হিসেবে Python 3.9 ব্যবহার করা হচ্ছে
-FROM python:3.9-slim
+# Base image using Python 3.10 slim version
+FROM python:3.10-slim
 
-# এনভায়রনমেন্ট ভ্যারিয়েবল সেট করা হচ্ছে যাতে ইনস্টলের সময় কোনো প্রম্পট না আসে
-ENV DEBIAN_FRONTEND=noninteractive
-
-# প্রয়োজনীয় ডিপেন্ডেন্সি ইনস্টল করা: FFmpeg, Xvfb, Chromium, ChromeDriver
-# এবং Selenium ও অন্যান্য প্রয়োজনীয় লাইব্রেরি
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    ffmpeg \
-    xvfb \
-    chromium \
-    chromium-driver \
-    # যদি chromium বা ffmpeg চালাতে অন্য কোনো লাইব্রেরির প্রয়োজন হয়, এখানে যোগ করতে হবে
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
-
-# Python লাইব্রেরি ইনস্টল করা
-RUN pip install selenium
-
-# অ্যাপ্লিকেশনের জন্য ওয়ার্কিং ডিরেক্টরি সেট করা
+# Set working directory
 WORKDIR /app
 
-# HLS আউটপুট ডিরেক্টরি তৈরি করা
-RUN mkdir hls
+# Install ffmpeg and cleanup apt cache
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends ffmpeg && \
+    rm -rf /var/lib/apt/lists/*
 
-# পাইথন স্ক্রিপ্ট কপি করা
-COPY streamer.py .
+# Copy requirements file and install dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
-# HTTP সার্ভারের জন্য পোর্ট এক্সপোজ করা
-EXPOSE 8080
+# Copy the application code
+COPY app.py .
 
-# কন্টেইনার চালু হলে যে কমান্ড রান হবে
-# পাইথন স্ক্রিপ্টটি Xvfb, ব্রাউজার, FFmpeg এবং HTTP সার্ভার চালু করবে
-CMD ["python", "streamer.py"]
+# Create directory for HLS output
+RUN mkdir hls_output
+
+# Expose the port the HTTP server will run on
+EXPOSE 8000
+
+# Command to run the application
+# Expects the YouTube URL as a command-line argument
+CMD ["python", "app.py"]
